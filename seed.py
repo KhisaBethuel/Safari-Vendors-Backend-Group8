@@ -1,8 +1,13 @@
 from app import app
-from models import  db
+from models import  *
 
 with app.app_context():
     print("Populating the table")
     
     
-    print("Done")
+    db.drop_all()
+    db.create_all()
+    
+    
+
+    print("Database has been seeded successfully!")
