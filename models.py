@@ -6,6 +6,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
+#association table for vendor and products
+vendor_products = db.Table('vendor_products',
+    db.Column('vendor_id', db.Integer, db.ForeignKey('vendors.id'), primary_key=True),
+    db.Column('product_id', db.Integer, db.ForeignKey('products.id'), primary_key=True)
+)
+
+
+cart_products = db.Table('cart_products',
+    db.Column('cart_id', db.Integer, db.ForeignKey('carts.id'), primary_key=True),
+    db.Column('product_id', db.Integer, db.ForeignKey('products.id'), primary_key=True)
+)
+
 class Buyers(db.Model, SerializerMixin):
     
     __tablename__ = "buyers"
@@ -22,6 +34,7 @@ class Buyers(db.Model, SerializerMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
+    
     #relationship with a review
     
     #relationship with an order
@@ -44,10 +57,39 @@ class Vendors(db.Model, SerializerMixin):
     def check_password(self, password):
         return check_password_hash(self.password, password)
     #relationship with a product(many to many)
-    
+
+    products = db.relationship('Product', secondary=vendor_products, backref='vendors', lazy=True)
     #relationship with an order
     
+    # a relationship with the reviews
     
+
+class Products(db.Model, SerializerMixin):
+    __tablename__ = "products"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(255))
+    price = db.Column(db.Float, nullable=False)
+    
+    
+    
+    # Relationship with vendor
+    vendors = db.relationship("Vendors", secondary=vendor_products, backref="products")
+    
+    
+    
+class Cart(db.Model, SerializerMixin):
+    __tablename__ = "carts"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    
+    buyer_id = db.Column(db.Integer, db.ForeignKey('buyers.id'), nullable=False)
+    
+    products = db.relationship('Products', secondary=cart_products, backref='carts', lazy=True)
+    
+
 class TokenBlocklist(db.Model):
     __tablename__ = "token_blocklist"
 
