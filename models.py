@@ -12,6 +12,12 @@ vendor_products = db.Table('vendor_products',
     db.Column('product_id', db.Integer, db.ForeignKey('products.id'), primary_key=True)
 )
 
+
+cart_products = db.Table('cart_products',
+    db.Column('cart_id', db.Integer, db.ForeignKey('carts.id'), primary_key=True),
+    db.Column('product_id', db.Integer, db.ForeignKey('products.id'), primary_key=True)
+)
+
 class Buyers(db.Model, SerializerMixin):
     
     __tablename__ = "buyers"
@@ -73,6 +79,15 @@ class Products(db.Model, SerializerMixin):
     
     
     
+class Cart(db.Model, SerializerMixin):
+    __tablename__ = "carts"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    
+    buyer_id = db.Column(db.Integer, db.ForeignKey('buyers.id'), nullable=False)
+    
+    products = db.relationship('Products', secondary=cart_products, backref='carts', lazy=True)
     
 
 class TokenBlocklist(db.Model):
