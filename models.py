@@ -18,7 +18,7 @@ cart_products = db.Table('cart_products',
     db.Column('product_id', db.Integer, db.ForeignKey('products.id'), primary_key=True)
 )
 
-class Buyers(db.Model, SerializerMixin):
+class Buyer(db.Model, SerializerMixin):
     
     __tablename__ = "buyers"
     
@@ -45,7 +45,7 @@ class Buyers(db.Model, SerializerMixin):
     cart = db.relationship('Cart', back_populates='buyer', lazy=True)
     
     
-class Vendors(db.Model, SerializerMixin):
+class Vendor(db.Model, SerializerMixin):
     __tablename__ = "vendors"
     
     serialize_rules = ('-password', '-reviews.vendor', '-products.vendors', '-orders.vendor')
@@ -64,7 +64,7 @@ class Vendors(db.Model, SerializerMixin):
         return check_password_hash(self.password, password)
     #relationship with a product(many to many)
 
-    products = db.relationship('Product', secondary=vendor_products, back_populates='vendors', lazy=True)
+    products = db.relationship('Product', secondary='vendor_products', back_populates='vendors', lazy=True)
     
     #relationship with an order
     orders = db.relationship("Order", back_populates="vendor", lazy=True)
@@ -72,7 +72,7 @@ class Vendors(db.Model, SerializerMixin):
     reviews = db.relationship("Review", back_populates="vendor", lazy=True)
     
 
-class Products(db.Model, SerializerMixin):
+class Product(db.Model, SerializerMixin):
     __tablename__ = "products"
     
     serialize_rules = ('-vendors.products', '-reviews.product') 
@@ -86,9 +86,9 @@ class Products(db.Model, SerializerMixin):
     
     
     # Relationship with vendor
-    vendors = db.relationship("Vendors", secondary=vendor_products, back_populates="products")
+    vendors = db.relationship("Vendor", secondary="vendor_products", back_populates="products")
     reviews = db.relationship("Review", back_populates="product", lazy=True)
-    
+    carts = db.relationship('Cart', secondary=cart_products, back_populates='products')
     
     
     
@@ -98,11 +98,12 @@ class Cart(db.Model, SerializerMixin):
     serialize_rules = ('-buyer.cart', '-products.carts')
     
     id = db.Column(db.Integer, primary_key=True)
+    buyer = db.relationship('Buyer', back_populates='cart')
     
     
     buyer_id = db.Column(db.Integer, db.ForeignKey('buyers.id'), nullable=False)
     
-    products = db.relationship('Products', secondary=cart_products, back_populates='carts', lazy=True)
+    products = db.relationship('Product', secondary=cart_products, back_populates='carts', lazy=True)
     
 
 class Order(db.Model, SerializerMixin):
@@ -117,8 +118,8 @@ class Order(db.Model, SerializerMixin):
     total_price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(50), nullable=False, default='Pending')
     
-    buyer = db.relationship('Buyers', back_populates='orders', lazy=True)
-    vendor = db.relationship('Vendors', back_populates='orders', lazy=True)
+    buyer = db.relationship('Buyer', back_populates='orders', lazy=True)
+    vendor = db.relationship('Vendor', back_populates='orders', lazy=True)
     
     
 class Review(db.Model, SerializerMixin):
@@ -133,8 +134,8 @@ class Review(db.Model, SerializerMixin):
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.String(255), nullable=True)
     
-    product = db.relationship('Products', back_populates='reviews', lazy=True)
-    vendor = db.relationship('Vendors', back_populates='reviews', lazy=True)
+    product = db.relationship('Product', back_populates='reviews', lazy=True)
+    vendor = db.relationship('Vendor', back_populates='reviews', lazy=True)
     
     
 class TokenBlocklist(db.Model):

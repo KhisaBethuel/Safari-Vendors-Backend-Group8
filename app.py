@@ -34,26 +34,39 @@ class Register(Resource):
         user_type = data.get('user_type') 
 
         if user_type == 'buyer':
-            if Buyers.query.filter_by(email=email).first():
+            if Buyer.query.filter_by(email=email).first():
                 return make_response({"message": "Buyer with this email already exists!"}, 400)
 
-            new_buyer = Buyers(username=username, email=email, password=password)
+            new_buyer = Buyer(username=username, email=email)
+            new_buyer.password = password
             db.session.add(new_buyer)
             db.session.commit()
 
             return make_response({"message": "Buyer registered successfully!"}, 201)
 
         elif user_type == 'vendor':
-            if Vendors.query.filter_by(email=email).first():
+            if Vendor.query.filter_by(email=email).first():
                 return make_response({"message": "Vendor with this email already exists!"}, 400)
 
-            new_vendor = Vendors(username=username, email=email, password=password)
+            new_vendor = Vendor(username=username, email=email)
+            new_vendor.password = password
             db.session.add(new_vendor)
             db.session.commit()
 
             return make_response({"message": "Vendor registered successfully!"}, 201)
         
-        
+        elif user_type == 'both':
+            if Buyer.query.filter_by(email=email).first() or Vendor.query.filter_by(email=email).first():
+                return make_response({"message": "User with this email already exists!"}, 400)
+
+            new_buyer = Buyer(username=username, email=email)
+            new_buyer.password = password
+            new_vendor = Vendor(username=username, email=email)
+            new_vendor.password = password
+            db.session.add(new_buyer)
+            db.session.add(new_vendor)
+            db.session.commit()
+            return make_response({"message": "Buyer and Vendor registered successfully!"}, 201)
 
         return make_response({"message": "Invalid user_type!"}, 400)
 
@@ -65,25 +78,30 @@ class Login(Resource):
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
-        user_type = data.get('user_type') 
 
-        if user_type == 'buyer':
-            buyer = Buyers.query.filter_by(email=email).first()
-            if not buyer or not buyer.check_password(password):
-                return make_response({"message": "Invalid buyer credentials!"}, 401)
+        # buyer
+        buyer = Buyer.query.filter_by(email=email).first()
+        if buyer and buyer.check_password(password):
+            access_token = create_access_token(identity={"id": buyer.id, "user_type": "buyer"})
+            refresh_token = create_refresh_token(identity={"id": buyer.id, "user_type": "buyer"})
+            return make_response({"access_token": access_token, "refresh_token": refresh_token}, 200)
 
-            access_token = create_access_token(identity={"id": buyer.id, "role": "buyer"})
-            return make_response({"access_token": access_token}, 200)
+        # vendor 
+        vendor = Vendor.query.filter_by(email=email).first()
+        if vendor and vendor.check_password(password):
+            access_token = create_access_token(identity={"id": vendor.id, "user_type": "vendor"})
+            refresh_token = create_refresh_token(identity={"id": vendor.id, "user_type": "vendor"})
+            return make_response({"access_token": access_token, "refresh_token": refresh_token}, 200)
 
-        elif user_type == 'vendor':
-            vendor = Vendors.query.filter_by(email=email).first()
-            if not vendor or not vendor.check_password(password):
-                return make_response({"message": "Invalid vendor credentials!"}, 401)
+        # user with both roles
+        general_user = Buyer.query.filter_by(email=email).first()
+        if general_user and general_user.check_password(password):
+            access_token = create_access_token(identity={"id": general_user.id, "user_type": "both"})
+            refresh_token = create_refresh_token(identity={"id": general_user.id, "user_type": "both"})
+            return make_response({"access_token": access_token, "refresh_token": refresh_token}, 200)
 
-            access_token = create_access_token(identity={"id": vendor.id, "role": "vendor"})
-            return make_response({"access_token": access_token}, 200)
 
-        return make_response({"message": "Invalid role!"}, 400)
+        return make_response({"message": "Invalid username or password!"}, 400)
     
 
 api.add_resource(Login, '/login')
@@ -109,7 +127,7 @@ def check_if_token_revoked(jwt_header, jwt_payload):
 
 class Product(Resource):
     def get(self):
-        products = Products.query.all()
+        products = Product.query.all()
         return make_response(jsonify([product.to_dict() for product in products]), 200)
 
     @jwt_required()
@@ -118,8 +136,9 @@ class Product(Resource):
         name = data.get('name')
         price = data.get('price')
         category = data.get('category')
+        image_url = data.get("image_url")
 
-        new_product = Products(name=name, price=price, category=category)
+        new_product = Product(name=name, price=price, category=category, image_url=image_url)
         db.session.add(new_product)
         db.session.commit()
 
@@ -130,23 +149,70 @@ api.add_resource(Product, '/products')
 class SingleProduct(Resource):
     @jwt_required()
     def get(self, product_id):
-        product = Products.query.get_or_404(product_id)
+        product = Product.query.get_or_404(product_id)
         return make_response(product.to_dict(), 200)
 
     @jwt_required()
     def patch(self, product_id):
-        product = Products.query.get_or_404(product_id)
+        product = Product.query.get_or_404(product_id)
         data = request.get_json()
 
         product.name = data.get('name', product.name)
         product.price = data.get('price', product.price)
         product.category = data.get('category', product.category)
-
+        product.image_url = data.get('image_url', product.image_url)
+        
         db.session.commit()
         return make_response({"message": "Product updated successfully!"}, 200)
     
+    @jwt_required()
+    def delete(self, product_id):
+        product = Product.query.get_or_404(product_id)
+        db.session.delete(product)
+        db.session.commit()
+        return make_response({"message": "Product deleted successfully!"}, 200)
     
 api.add_resource(SingleProduct, '/products/<int:product_id>')
+
+class Cart(Resource):
+    @jwt_required()
+    def get(self):
+        user_id = get_jwt()['sub']['id']
+        cart = Cart.query.filter_by(buyer_id=user_id).first()
+        if cart:
+            return make_response(cart.to_dict(), 200)
+        return make_response({"message": "Cart not found!"}, 404)
+
+    @jwt_required()
+    def post(self):
+        user_id = get_jwt()['sub']['id']
+        cart = Cart(buyer_id=user_id)
+        db.session.add(cart)
+        db.session.commit()
+        return make_response({"message": "Cart created successfully!"}, 201)
+
+api.add_resource(Cart, '/cart')
+
+class ReviewResource(Resource):
+    @jwt_required()
+    def post(self, product_id):
+        data = request.get_json()
+        rating = data.get('rating')
+        comment = data.get('comment')
+
+        user_id = get_jwt()['sub']['id']
+        vendor = Vendors.query.filter_by(id=user_id).first()
+        buyer = Buyers.query.filter_by(id=user_id).first()
+
+        if vendor:
+            return make_response({"message": "Vendors cannot leave reviews!"}, 403)
+
+        new_review = Review(rating=rating, comment=comment, product_id=product_id, buyer_id=user_id)
+        db.session.add(new_review)
+        db.session.commit()
+        return make_response({"message": "Review created successfully!"}, 201)
+
+api.add_resource(ReviewResource, '/products/<int:product_id>/reviews')
 
 
 #Home route or root page
