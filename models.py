@@ -55,6 +55,8 @@ class Vendors(db.Model, SerializerMixin):
     products = db.relationship('Product', secondary=vendor_products, backref='vendors', lazy=True)
     #relationship with an order
     
+    # a relationship with the reviews
+    
 
 class Products(db.Model, SerializerMixin):
     __tablename__ = "products"

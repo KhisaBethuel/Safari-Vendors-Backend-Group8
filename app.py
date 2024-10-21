@@ -107,6 +107,46 @@ def check_if_token_revoked(jwt_header, jwt_payload):
     token = TokenBlocklist.query.filter_by(jti=jti).first()
     return token is not None 
 
+class Product(Resource):
+    def get(self):
+        products = Products.query.all()
+        return make_response(jsonify([product.to_dict() for product in products]), 200)
+
+    @jwt_required()
+    def post(self):
+        data = request.get_json()
+        name = data.get('name')
+        price = data.get('price')
+        category = data.get('category')
+
+        new_product = Products(name=name, price=price, category=category)
+        db.session.add(new_product)
+        db.session.commit()
+
+        return make_response({"message": "Product created successfully!"}, 201)
+
+api.add_resource(Product, '/products')
+
+class SingleProduct(Resource):
+    @jwt_required()
+    def get(self, product_id):
+        product = Products.query.get_or_404(product_id)
+        return make_response(product.to_dict(), 200)
+
+    @jwt_required()
+    def patch(self, product_id):
+        product = Products.query.get_or_404(product_id)
+        data = request.get_json()
+
+        product.name = data.get('name', product.name)
+        product.price = data.get('price', product.price)
+        product.category = data.get('category', product.category)
+
+        db.session.commit()
+        return make_response({"message": "Product updated successfully!"}, 200)
+    
+    
+api.add_resource(SingleProduct, '/products/<int:product_id>')
 
 
 #Home route or root page
