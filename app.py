@@ -33,7 +33,7 @@ class Register(Resource):
         password = data.get('password')
         user_type = data.get('user_type') 
 
-        if user_type == 'user_type':
+        if user_type == 'buyer':
             if Buyers.query.filter_by(email=email).first():
                 return make_response({"message": "Buyer with this email already exists!"}, 400)
 
@@ -52,6 +52,8 @@ class Register(Resource):
             db.session.commit()
 
             return make_response({"message": "Vendor registered successfully!"}, 201)
+        
+        
 
         return make_response({"message": "Invalid user_type!"}, 400)
 
