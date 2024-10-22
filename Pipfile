@@ -12,6 +12,7 @@ flask-restful = "*"
 flask-cors = "*"
 flask-jwt-extended = "*"
 python-dotenv = "*"
+gunicorn = "*"
 
 [requires]
 python_full_version = "3.12.3"
