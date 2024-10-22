@@ -5,6 +5,7 @@ from models import *
 from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt
 from flask_cors import CORS
 from dotenv import load_dotenv
+from flask_sqlalchemy import SQLAlchemy
 import os
 
 load_dotenv()
@@ -20,6 +21,7 @@ app.config['JWT_SECRET_KEY'] = os.environ.get("JWT_SECRET_KEY")
 migrate = Migrate(app, db)
 db.init_app(app)
 jwt = JWTManager(app)
+db = SQLAlchemy(app)
 
 api = Api(app)
 CORS(app)
