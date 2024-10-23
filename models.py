@@ -81,8 +81,16 @@ class Product(db.Model, SerializerMixin):
     name = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(255))
     price = db.Column(db.Float, nullable=False)
-    image_url = db.Column(db.String(255), nullable=False)
+    image_url = db.Column(db.String, nullable=False)
     
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'category': self.category,
+            'price': self.price,
+            'image_url': self.image_url,
+        }
     
     
     # Relationship with vendor
@@ -95,7 +103,6 @@ class Product(db.Model, SerializerMixin):
 class Cart(db.Model, SerializerMixin):
     __tablename__ = "carts"
     
-    serialize_rules = ('-buyer.cart', '-products.carts')
     
     id = db.Column(db.Integer, primary_key=True)
     buyer = db.relationship('Buyer', back_populates='cart')
@@ -105,7 +112,21 @@ class Cart(db.Model, SerializerMixin):
     
     products = db.relationship('Product', secondary=cart_products, back_populates='carts', lazy=True)
     
-
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'buyer': {
+                'id': self.buyer.id,
+                'username': self.buyer.username
+            } if self.buyer else None,
+            'products': [
+                {
+                    'id': product.id,
+                    'name': product.name,
+                    'price': product.price
+                } for product in self.products
+            ]
+        }
 class Order(db.Model, SerializerMixin):
     
     __tablename__ = "orders"
@@ -120,6 +141,15 @@ class Order(db.Model, SerializerMixin):
     
     buyer = db.relationship('Buyer', back_populates='orders', lazy=True)
     vendor = db.relationship('Vendor', back_populates='orders', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'buyer_id': self.buyer_id,
+            'vendor_id': self.vendor_id,
+            'total_price': self.total_price,
+            'status': self.status
+        }
     
     
 class Review(db.Model, SerializerMixin):
