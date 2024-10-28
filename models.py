@@ -164,6 +164,7 @@ class Review(db.Model, SerializerMixin):
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.String(255), nullable=True)
     
+    
     product = db.relationship('Product', back_populates='reviews', lazy=True)
     vendor = db.relationship('Vendor', back_populates='reviews', lazy=True)
     
