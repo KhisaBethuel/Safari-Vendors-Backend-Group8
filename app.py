@@ -53,18 +53,7 @@ def register():
 
         return make_response({"message": "Vendor registered successfully!"}, 201)
         
-    elif user_type == 'both':
-        if Buyer.query.filter_by(email=email).first() or Vendor.query.filter_by(email=email).first():
-            return make_response({"message": "User with this email already exists!"}, 400)
-
-        new_buyer = Buyer(username=username, email=email)
-        new_buyer.password = password
-        new_vendor = Vendor(username=username, email=email)
-        new_vendor.password = password
-        db.session.add(new_buyer)
-        db.session.add(new_vendor)
-        db.session.commit()
-        return make_response({"message": "Buyer and Vendor registered successfully!"}, 201)
+    
 
     return make_response({"message": "Invalid user_type!"}, 400)
 
@@ -90,13 +79,7 @@ def login():
         refresh_token = create_refresh_token(identity={"id": vendor.id, "user_type": "vendor"})
         return make_response({"access_token": access_token, "refresh_token": refresh_token}, 200)
 
-    # user with both roles
-    general_user = Buyer.query.filter_by(email=email).first()
-    if general_user and general_user.check_password(password):
-        access_token = create_access_token(identity={"id": general_user.id, "user_type": "both"})
-        refresh_token = create_refresh_token(identity={"id": general_user.id, "user_type": "both"})
-        return make_response({"access_token": access_token, "refresh_token": refresh_token}, 200)
-
+    
 
     return make_response({"message": "Invalid username or password!"}, 400)
     
@@ -218,6 +201,8 @@ def cart():
         db.session.commit()
         return make_response({"message": "Cart deleted successfully!"}, 200)
     
+    
+
 @app.route('/orders', methods=['GET', 'POST'])
 @jwt_required()
 def orders():
@@ -262,15 +247,18 @@ def review(product_id):
         comment = data.get('comment')
 
         user_id = get_jwt()['sub']['id']
+        buyer = Buyer.query.filter_by(id=user_id).first()
         vendor = Vendor.query.filter_by(id=user_id).first()
 
         if vendor:
             return make_response({"message": "Vendors cannot leave reviews!"}, 403)
-
-        new_review = Review(rating=rating, comment=comment, product_id=product_id, buyer_id=user_id)
-        db.session.add(new_review)
-        db.session.commit()
-        return make_response({"message": "Review created successfully!"}, 201)
+        
+        
+        if buyer:
+            new_review = Review(rating=rating, comment=comment, product_id=product_id, buyer_id=user_id)
+            db.session.add(new_review)
+            db.session.commit()
+            return make_response({"message": "Review created successfully!"}, 201)
     
     elif request.method == 'PATCH':
         review_id = request.args.get('review_id')
@@ -305,6 +293,12 @@ def review(product_id):
         return make_response({"message": "Review deleted successfully!"}, 200)
 
 
+@app.route('/vendors', methods=['GET'])
+@jwt_required()
+def get_vendors():
+    vendors = Vendor.query.all()
+    return make_response(jsonify([vendor.to_dict() for vendor in vendors]), 200)
+
 
 
 #Home route or root page
@@ -314,4 +308,4 @@ def home():
 
 
 if __name__ == "__main__":
-    app.run(port=8083, debug=True)
+    app.run(port=8080, debug=True)
